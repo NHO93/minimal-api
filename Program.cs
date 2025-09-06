@@ -1,15 +1,43 @@
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
+using MinimalApi.Infraestrutura.DB;
+using MinimalApi.DTOs;
+using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using MinimalApi.Dominio.Servicos;
+using MinimalApi.Dominio.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 
-app.MapGet("/", () => "Hello World! Minimal API is running.");
+internal class Program
+{
+    private static void Main(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
 
-app.MapPost("/login", (MinimalApi.DTOs.LoginDTO loginDTO) => {
-    if (loginDTO.Email == "adm@teste.com" && loginDTO.Senha == "123456")
-        return Results.Ok("Login com sucesso");
-    else
-        return Results.Unauthorized();
-});
+        builder.Services.AddScoped<IAdministradorServico,
+        AdministradorServico>();
 
-app.Run();
+        builder.Services.AddDbContext<DbContexto>(options =>
+        {
+            options.UseMySql(
+                builder.Configuration.GetConnectionString("mysql"),
+                ServerVersion.AutoDetect(
+                    builder.Configuration.GetConnectionString("mysql")
+                )
+            );
+        });
 
+        var app = builder.Build();
 
+        app.MapGet("/", () => "Hello World! Minimal API is running.");
+
+        app.MapPost("/login", ([FromBody] LoginDTO loginDTO, IAdministradorServico administradorServico) =>
+        {
+            if (administradorServico.Login(loginDTO)! == null)
+            {
+                return Results.Ok("Login realizado com sucesso");
+            }
+            return Results.Unauthorized();
+        });
+
+        app.Run();
+    }
+}
